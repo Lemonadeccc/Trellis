@@ -296,6 +296,7 @@ interface InitOptions {
   opencode?: boolean;
   codex?: boolean;
   kilo?: boolean;
+  kiro?: boolean;
   yes?: boolean;
   user?: string;
   force?: boolean;
