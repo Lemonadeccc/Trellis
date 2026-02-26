@@ -131,13 +131,28 @@ When adding a new platform `{platform}`, update the following:
 
 | File | Change |
 |------|--------|
-| `src/templates/extract.ts` | Add `get{Platform}TemplatePath()` function |
+| `src/templates/extract.ts` | Add `get{Platform}TemplatePath()` function + `get{Platform}SourcePath()` deprecated alias |
 
 ### Step 6: Python Scripts (independent runtime)
+
+> **Warning**: `cli_adapter.py` uses if/elif/else chains with NO exhaustive check. New platforms silently fall through to the `else` branch (Claude defaults). You MUST add explicit branches for **every method** listed below.
 
 | File | Change |
 |------|--------|
 | `src/templates/trellis/scripts/common/cli_adapter.py` | Add to `Platform` literal type, `config_dir_name` property, `detect_platform()`, `get_cli_adapter()` validation |
+
+**cli_adapter.py methods requiring explicit branches** (do NOT rely on `else` fallthrough):
+
+| Method | What to decide | Example |
+|--------|---------------|---------|
+| `config_dir_name` | Config directory name | `".gemini"`, `".agent"` |
+| `get_trellis_command_path()` | Command file path format | `.toml` vs `.md`, subdirectory vs flat |
+| `get_non_interactive_env()` | Non-interactive env var | `{}` if none, or platform-specific |
+| `build_run_command()` | CLI command for running agents | `["gemini", prompt]` or raise ValueError |
+| `build_resume_command()` | CLI command for resuming sessions | `["gemini", "--resume", id]` or raise ValueError |
+| `cli_name` | CLI executable name | `"gemini"`, `"agy"` |
+| `detect_platform()` | Directory detection logic | Check `.gemini/` exists |
+| `get_commands_path()` | Command directory structure | `commands/trellis/` or `workflows/` |
 | `src/templates/trellis/scripts/common/registry.py` | Update default platform if needed |
 | `src/templates/trellis/scripts/multi_agent/plan.py` | Add to `--platform` choices (only if this platform supports multi-agent runtime) |
 | `src/templates/trellis/scripts/multi_agent/start.py` | Add to `--platform` choices (only if this platform supports multi-agent runtime) |
@@ -177,6 +192,18 @@ If Trellis project itself should support the new platform:
 | File | Change |
 |------|--------|
 | `.gitignore` | Add local config patterns (e.g., `{platform}.local.json`) |
+
+### Step 11: Tests (MANDATORY)
+
+> **Warning**: Dynamic iteration tests (e.g., `PLATFORM_IDS.forEach`) only verify registry metadata. They do NOT cover platform-specific runtime behavior. You MUST add explicit tests.
+
+| Test File | What to Add |
+|-----------|-------------|
+| `test/templates/{platform}.test.ts` | **NEW FILE**: Verify `getAllCommands()`/`getAllSkills()`/`getAllWorkflows()` returns expected set, content non-empty, format valid |
+| `test/configurators/platforms.test.ts` | Detection test: `getConfiguredPlatforms` finds `.{configDir}`. Configurator test: `configurePlatform` writes expected files, no compiled artifacts |
+| `test/commands/init.integration.test.ts` | Init test: `init({ {platform}: true })` creates correct directory. Negative assertions: add `.{configDir}` checks to existing platform tests |
+| `test/templates/extract.test.ts` | `get{Platform}TemplatePath()` returns existing dir. `get{Platform}SourcePath()` deprecated alias equals template path |
+| `test/regression.test.ts` | Platform registration: `AI_TOOLS.{platform}` exists with correct `configDir`. cli_adapter: `commonCliAdapter` contains `"{platform}"` and `".{configDir}"`. Update `withTracking` list if `collectTemplates` is defined |
 
 ---
 
