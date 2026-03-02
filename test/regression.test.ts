@@ -423,6 +423,43 @@ describe("regression: hook JSON format (beta.7)", () => {
   });
 });
 
+describe("regression: SessionStart reinject on clear/compact (MIN-231)", () => {
+  it("[MIN-231] Claude SessionStart hooks cover startup, clear, and compact", () => {
+    const settings = JSON.parse(claudeSettingsTemplate);
+    const matchers = settings.hooks.SessionStart.map(
+      (e: { matcher: string }) => e.matcher,
+    );
+    expect(matchers).toEqual(
+      expect.arrayContaining(["startup", "clear", "compact"]),
+    );
+  });
+
+  it("[MIN-231] iFlow SessionStart hooks cover startup, clear, and compact", () => {
+    const settings = JSON.parse(iflowSettingsTemplate);
+    const matchers = settings.hooks.SessionStart.map(
+      (e: { matcher: string }) => e.matcher,
+    );
+    expect(matchers).toEqual(
+      expect.arrayContaining(["startup", "clear", "compact"]),
+    );
+  });
+
+  it("[MIN-231] all SessionStart matchers invoke session-start.py", () => {
+    for (const [label, template] of [
+      ["claude", claudeSettingsTemplate],
+      ["iflow", iflowSettingsTemplate],
+    ] as const) {
+      const settings = JSON.parse(template);
+      for (const entry of settings.hooks.SessionStart) {
+        expect(
+          entry.hooks[0].command,
+          `${label} ${entry.matcher} should invoke session-start.py`,
+        ).toContain("session-start.py");
+      }
+    }
+  });
+});
+
 describe("regression: backslash in markdown templates (beta.12)", () => {
   it("[beta.12] Claude command templates do not contain problematic backslash sequences", () => {
     const commands = getClaudeCommands();
