@@ -639,12 +639,47 @@ describe("regression: migration manifest consistency", () => {
     }
   });
 
-  it("[beta.0] shell-to-python migration has both renames and deletes", () => {
+  it("[beta.0] shell-to-python migration uses only renames (no deletes)", () => {
     const migrations = getMigrationsForVersion("0.2.15", "0.3.0-beta.0");
     const renames = migrations.filter((m) => m.type === "rename");
     const deletes = migrations.filter((m) => m.type === "delete");
     expect(renames.length).toBeGreaterThan(0);
-    expect(deletes.length).toBeGreaterThan(0);
+    expect(deletes.length).toBe(0);
+  });
+
+  it("[#57] shell archive migrations use rename type with correct from/to paths", () => {
+    const migrations = getMigrationsForVersion("0.2.15", "0.3.0-beta.0");
+    const shellArchives = migrations.filter(
+      (m) => m.to?.includes("scripts-shell-archive"),
+    );
+    // 19 shell scripts should be archived
+    expect(shellArchives.length).toBe(19);
+    for (const m of shellArchives) {
+      expect(m.type).toBe("rename");
+      expect(m.from).toMatch(/\.trellis\/scripts\/.*\.sh$/);
+      expect(m.to).toMatch(/\.trellis\/scripts-shell-archive\/.*\.sh$/);
+      // The filename should be preserved
+      const fromFile = m.from.split("/").pop();
+      const toFile = (m.to as string).split("/").pop();
+      expect(toFile).toBe(fromFile);
+    }
+  });
+
+  it("[#57] shell archive covers all three subdirectories", () => {
+    const migrations = getMigrationsForVersion("0.2.15", "0.3.0-beta.0");
+    const shellArchives = migrations.filter(
+      (m) => m.to?.includes("scripts-shell-archive"),
+    );
+    const topLevel = shellArchives.filter(
+      (m) => !m.from.includes("/common/") && !m.from.includes("/multi-agent/"),
+    );
+    const common = shellArchives.filter((m) => m.from.includes("/common/"));
+    const multiAgent = shellArchives.filter((m) =>
+      m.from.includes("/multi-agent/"),
+    );
+    expect(topLevel.length).toBe(6);
+    expect(common.length).toBe(8);
+    expect(multiAgent.length).toBe(5);
   });
 
   it("[0.2.14] command namespace migration renames exist", () => {
