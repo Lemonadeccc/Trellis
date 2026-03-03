@@ -1559,3 +1559,39 @@ add_session.py 写完 journal/index 后自动 git add .trellis/workspace && git 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 60: feat: record-session auto-commit + config.yaml
+
+**Date**: 2026-03-03
+**Task**: feat: record-session auto-commit + config.yaml
+
+### Summary
+
+record-session 执行后自动提交 workspace 改动，解决脏目录问题。新增 .trellis/config.yaml 支持配置 session_commit_message 和 max_journal_lines，替代硬编码。
+
+### Main Changes
+
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d5ac365` | (see git log) |
+| `8fa5771` | (see git log) |
+| `7c4a829` | (see git log) |
+| `f2370fe` | (see git log) |
+| `1d5a84a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
