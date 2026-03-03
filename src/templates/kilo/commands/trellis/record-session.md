@@ -1,6 +1,6 @@
 [!] **Prerequisite**: This command should only be used AFTER the human has tested and committed the code.
 
-**AI must NOT execute git commit for user code** - only read history (`git log`, `git status`, `git diff`).
+**AI must NOT execute git commit** - only read history (`git log`, `git status`, `git diff`).
 
 ---
 
