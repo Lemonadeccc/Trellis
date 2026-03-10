@@ -38,10 +38,15 @@ function getTaskStatus(directory) {
     return "Status: NO ACTIVE TASK\nNext: Describe what you want to work on"
   }
 
-  // Resolve task directory (relative paths are under .trellis/tasks/)
-  const taskDir = taskRef.startsWith("/")
-    ? taskRef
-    : join(trellisDir, "tasks", taskRef)
+  // Resolve task directory
+  let taskDir
+  if (taskRef.startsWith("/")) {
+    taskDir = taskRef
+  } else if (taskRef.startsWith(".trellis/")) {
+    taskDir = join(directory, taskRef)
+  } else {
+    taskDir = join(trellisDir, "tasks", taskRef)
+  }
 
   if (!existsSync(taskDir)) {
     return `Status: STALE POINTER\nTask: ${taskRef}\nNext: Task directory not found. Run: python3 ./.trellis/scripts/task.py finish`
@@ -204,7 +209,8 @@ Read and follow all instructions below carefully.
 
   // 7. Final directive (R3: active, not passive)
   parts.push(`<ready>
-Context loaded. Report current state summary (branch, task, workspace), then ask: "What would you like to work on?"
+Context loaded. Steps 1-3 (workflow, context, guidelines) are already injected above — do NOT re-read them.
+Start from Step 4. Wait for user's first message, then follow <instructions> to handle their request.
 If there is an active task, ask whether to continue it.
 </ready>`)
 

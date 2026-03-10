@@ -77,7 +77,12 @@ def _get_task_status(trellis_dir: Path) -> str:
         return "Status: NO ACTIVE TASK\nNext: Describe what you want to work on"
 
     # Resolve task directory
-    task_dir = trellis_dir / "tasks" / task_ref if not Path(task_ref).is_absolute() else Path(task_ref)
+    if Path(task_ref).is_absolute():
+        task_dir = Path(task_ref)
+    elif task_ref.startswith(".trellis/"):
+        task_dir = trellis_dir.parent / task_ref
+    else:
+        task_dir = trellis_dir / "tasks" / task_ref
     if not task_dir.is_dir():
         return f"Status: STALE POINTER\nTask: {task_ref}\nNext: Task directory not found. Run: python3 ./.trellis/scripts/task.py finish"
 
@@ -180,7 +185,8 @@ Read and follow all instructions below carefully.
     output.write(f"<task-status>\n{task_status}\n</task-status>\n\n")
 
     output.write("""<ready>
-Context loaded. Report current state summary (branch, task, workspace), then ask: "What would you like to work on?"
+Context loaded. Steps 1-3 (workflow, context, guidelines) are already injected above — do NOT re-read them.
+Start from Step 4. Wait for user's first message, then follow <instructions> to handle their request.
 If there is an active task, ask whether to continue it.
 </ready>""")
 
