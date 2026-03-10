@@ -784,3 +784,51 @@ Restructured Trellis repo as a monorepo: moved CLI code to `packages/cli/`, adde
 ### Next Steps
 
 - None - task complete
+
+
+## Session 82: Hook Start Equiv: ready tag fix + path resolution + dogfood sync
+
+**Date**: 2026-03-10
+**Task**: Hook Start Equiv: ready tag fix + path resolution + dogfood sync
+**Package**: cli
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| Change | Description |
+|--------|-------------|
+| `<ready>` tag reword | Changed from "Report current state summary" to "Wait for user's first message, then follow instructions". Explicitly tells AI Steps 1-3 are already injected. |
+| Task path resolution fix | Fixed bug where `.current-task` storing project-relative paths (`.trellis/tasks/xxx`) caused double-path resolution in `_get_task_status()` |
+| Dogfood sync | Synced all hook-start-equiv changes to project's own `.claude/hooks/session-start.py`: task-status injection, dynamic spec discovery, ready tag, path fix |
+
+**Updated Files**:
+- `packages/cli/src/templates/claude/hooks/session-start.py`
+- `packages/cli/src/templates/iflow/hooks/session-start.py`
+- `packages/cli/src/templates/opencode/plugin/session-start.js`
+- `.claude/hooks/session-start.py`
+
+**Task archived**: `03-06-hook-start-equiv`
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `be06afd` | (see git log) |
+| `700f4b7` | (see git log) |
+| `5a925e6` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
