@@ -10,9 +10,91 @@
  * - Otherwise, this plugin handles injection
  */
 
-import { existsSync } from "fs"
+import { existsSync, readFileSync, readdirSync, statSync } from "fs"
 import { join } from "path"
 import { TrellisContext, contextCollector, debugLog } from "../lib/trellis-context.js"
+
+
+/**
+ * Check current task status and return structured status string.
+ * JavaScript equivalent of _get_task_status in Claude's session-start.py.
+ */
+function getTaskStatus(directory) {
+  const trellisDir = join(directory, ".trellis")
+  const currentTaskFile = join(trellisDir, ".current-task")
+
+  if (!existsSync(currentTaskFile)) {
+    return "Status: NO ACTIVE TASK\nNext: Describe what you want to work on"
+  }
+
+  let taskRef
+  try {
+    taskRef = readFileSync(currentTaskFile, "utf-8").trim()
+  } catch {
+    return "Status: NO ACTIVE TASK\nNext: Describe what you want to work on"
+  }
+
+  if (!taskRef) {
+    return "Status: NO ACTIVE TASK\nNext: Describe what you want to work on"
+  }
+
+  // Resolve task directory (relative paths are under .trellis/tasks/)
+  const taskDir = taskRef.startsWith("/")
+    ? taskRef
+    : join(trellisDir, "tasks", taskRef)
+
+  if (!existsSync(taskDir)) {
+    return `Status: STALE POINTER\nTask: ${taskRef}\nNext: Task directory not found. Run: python3 ./.trellis/scripts/task.py finish`
+  }
+
+  // Read task.json
+  let taskData = {}
+  const taskJsonPath = join(taskDir, "task.json")
+  if (existsSync(taskJsonPath)) {
+    try {
+      taskData = JSON.parse(readFileSync(taskJsonPath, "utf-8"))
+    } catch {
+      // Ignore parse errors
+    }
+  }
+
+  const taskTitle = taskData.title || taskRef
+  const taskStatus = taskData.status || "unknown"
+
+  if (taskStatus === "completed") {
+    const dirName = taskDir.split("/").pop()
+    return `Status: COMPLETED\nTask: ${taskTitle}\nNext: Archive with \`python3 ./.trellis/scripts/task.py archive ${dirName}\` or start a new task`
+  }
+
+  // Check if context is configured (jsonl files exist and non-empty)
+  let hasContext = false
+  for (const jsonlName of ["implement.jsonl", "check.jsonl", "spec.jsonl"]) {
+    const jsonlPath = join(taskDir, jsonlName)
+    if (existsSync(jsonlPath)) {
+      try {
+        const st = statSync(jsonlPath)
+        if (st.size > 0) {
+          hasContext = true
+          break
+        }
+      } catch {
+        // Ignore stat errors
+      }
+    }
+  }
+
+  const hasPrd = existsSync(join(taskDir, "prd.md"))
+
+  if (!hasPrd) {
+    return `Status: NOT READY\nTask: ${taskTitle}\nMissing: prd.md not created\nNext: Write PRD, then research → init-context → start`
+  }
+
+  if (!hasContext) {
+    return `Status: NOT READY\nTask: ${taskTitle}\nMissing: Context not configured (no jsonl files)\nNext: Complete Phase 2 (research → init-context → start) before implementing`
+  }
+
+  return `Status: READY\nTask: ${taskTitle}\nNext: Continue with implement or check`
+}
 
 /**
  * Build session context for injection
@@ -50,20 +132,58 @@ Read and follow all instructions below carefully.
     parts.push("</workflow>")
   }
 
-  // 4. Guidelines Index
+  // 4. Guidelines Index (dynamic discovery, matching Claude's session-start.py)
   parts.push("<guidelines>")
 
-  parts.push("## Frontend")
-  const frontendIndex = ctx.readProjectFile(".trellis/spec/frontend/index.md")
-  parts.push(frontendIndex || "Not configured")
+  const specDir = join(directory, ".trellis", "spec")
+  if (existsSync(specDir)) {
+    try {
+      const subs = readdirSync(specDir).filter(name => {
+        if (name.startsWith(".")) return false
+        try {
+          return statSync(join(specDir, name)).isDirectory()
+        } catch {
+          return false
+        }
+      }).sort()
 
-  parts.push("\n## Backend")
-  const backendIndex = ctx.readProjectFile(".trellis/spec/backend/index.md")
-  parts.push(backendIndex || "Not configured")
+      for (const sub of subs) {
+        const indexFile = join(specDir, sub, "index.md")
+        if (existsSync(indexFile)) {
+          // Flat spec dir: spec/<layer>/index.md
+          const content = ctx.readFile(indexFile)
+          if (content) {
+            parts.push(`## ${sub}\n${content}\n`)
+          }
+        } else {
+          // Nested package dirs (monorepo): spec/<pkg>/<layer>/index.md
+          try {
+            const nested = readdirSync(join(specDir, sub)).filter(name => {
+              try {
+                return statSync(join(specDir, sub, name)).isDirectory()
+              } catch {
+                return false
+              }
+            }).sort()
 
-  parts.push("\n## Guides")
-  const guidesIndex = ctx.readProjectFile(".trellis/spec/guides/index.md")
-  parts.push(guidesIndex || "Not configured")
+            for (const layer of nested) {
+              const nestedIndex = join(specDir, sub, layer, "index.md")
+              if (existsSync(nestedIndex)) {
+                const content = ctx.readFile(nestedIndex)
+                if (content) {
+                  parts.push(`## ${sub}/${layer}\n${content}\n`)
+                }
+              }
+            }
+          } catch {
+            // Ignore directory read errors
+          }
+        }
+      }
+    } catch {
+      // Ignore spec directory read errors
+    }
+  }
 
   parts.push("</guidelines>")
 
@@ -78,9 +198,14 @@ Read and follow all instructions below carefully.
     parts.push("</instructions>")
   }
 
-  // 6. Final directive
+  // 6. Task status (R2: check task state for session resume)
+  const taskStatus = getTaskStatus(directory)
+  parts.push(`<task-status>\n${taskStatus}\n</task-status>`)
+
+  // 7. Final directive (R3: active, not passive)
   parts.push(`<ready>
-Context loaded. Wait for user's first message, then follow <instructions> to handle their request.
+Context loaded. Report current state summary (branch, task, workspace), then ask: "What would you like to work on?"
+If there is an active task, ask whether to continue it.
 </ready>`)
 
   return parts.join("\n\n")

@@ -39,7 +39,8 @@
   "children": [
     "03-06-hook-start-equiv",
     "03-06-update-skip-dirs",
-    "03-07-learn-openspec-prd"
+    "03-07-learn-openspec-prd",
+    "03-10-dogfood-monorepo-compat"
   ],
   "parent": null,
   "relatedFiles": [],
